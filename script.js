@@ -445,7 +445,9 @@ if (heroContent) {
 
     if (!showcase) return;
 
-    const cards = document.querySelectorAll(".service-card");
+    const cards = document.querySelectorAll(
+        ".services-showcase .service-card"
+    );
 
     if (!cards.length) return;
 
@@ -457,25 +459,25 @@ if (heroContent) {
         const viewportHeight = window.innerHeight;
 
         /*
-            How far the user has travelled through
-            the Services showcase.
+            Calculate the scroll distance
+            through the Services showcase.
         */
         const totalDistance =
             showcase.offsetHeight - viewportHeight;
 
-        const scrolled =
-            Math.max(0, Math.min(totalDistance, -rect.top));
+        const scrolled = Math.max(
+            0,
+            Math.min(totalDistance, -rect.top)
+        );
 
         const progress =
             totalDistance > 0
                 ? scrolled / totalDistance
                 : 0;
 
-
         /*
-            Four services.
-            Each service receives one quarter
-            of the total scroll distance.
+            Each service receives an equal
+            portion of the scroll distance.
         */
         const serviceProgress = progress * cards.length;
 
@@ -485,10 +487,46 @@ if (heroContent) {
             const localProgress =
                 serviceProgress - index;
 
-            /*
-                Before its turn:
-                card stays outside on the right.
-            */
+
+            /* =====================================
+               MOBILE — OVERLAPPING CARDS
+            ===================================== */
+
+            if (window.innerWidth <= 768) {
+
+                if (localProgress <= 0) {
+
+                    // Upcoming card stays outside on the right
+                    card.style.transform = "translateX(120%)";
+                    card.style.zIndex = index + 1;
+
+                } else if (localProgress < 1) {
+
+                    // New card slides over the previous card
+                    const remaining = 1 - localProgress;
+                    const translateX = remaining * 120;
+
+                    card.style.transform =
+                        `translateX(${translateX}%)`;
+
+                    card.style.zIndex = index + 10;
+
+                } else {
+
+                    // Completed cards stay stacked underneath
+                    card.style.transform = "translateX(0)";
+                    card.style.zIndex = index + 1;
+
+                }
+
+                return;
+            }
+
+
+            /* =====================================
+               DESKTOP — ORIGINAL ANIMATION
+            ===================================== */
+
             if (localProgress <= 0) {
 
                 card.style.transform =
@@ -499,19 +537,10 @@ if (heroContent) {
                 return;
             }
 
-
-            /*
-                During its turn:
-                card moves from the right wall
-                into its final position.
-            */
             if (localProgress < 1) {
 
-                const remaining =
-                    1 - localProgress;
-
-                const translateX =
-                    remaining * 120;
+                const remaining = 1 - localProgress;
+                const translateX = remaining * 120;
 
                 card.style.transform =
                     `translateX(${translateX}%) translateY(-50%)`;
@@ -521,12 +550,7 @@ if (heroContent) {
                 return;
             }
 
-
-            /*
-                After its turn:
-                card stays in position underneath
-                the next card.
-            */
+            // Completed cards remain in their stacked positions
             card.style.transform =
                 "translateX(0) translateY(-50%)";
 
@@ -537,23 +561,25 @@ if (heroContent) {
     }
 
 
-    let ticking = false;
+    /* =========================================
+       PERFORMANCE — SCROLL & RESIZE
+    ========================================= */
 
+    let ticking = false;
 
     function requestUpdate() {
 
-        if (!ticking) {
+        if (ticking) return;
 
-            window.requestAnimationFrame(() => {
+        ticking = true;
 
-                updateServices();
+        window.requestAnimationFrame(() => {
 
-                ticking = false;
+            updateServices();
 
-            });
+            ticking = false;
 
-            ticking = true;
-        }
+        });
 
     }
 
@@ -564,17 +590,21 @@ if (heroContent) {
         { passive: true }
     );
 
-
     window.addEventListener(
         "resize",
         requestUpdate
     );
 
-
+    // Initial positioning
     updateServices();
 
 })();
 
+
+/* =========================================================
+   PROJECTS PARALLAX + MOUSE MOVEMENT
+   Keep your existing Projects JavaScript below this line.
+========================================================= */
 
 
 /* =========================================================
@@ -778,146 +808,209 @@ if (heroContent) {
 
 
 
+
 /* =========================================================
    SECTORS WE SERVE
+   Desktop: existing right-side image + hover
+   Mobile: expandable rows with images underneath
 ========================================================= */
 
 (() => {
 
-    const root =
-        document.getElementById("sectors");
+    const root = document.getElementById("sectors");
 
     if (!root) return;
 
+    const wrap = root.querySelector(".sectors-wrap");
+    const list = root.querySelector(".sectors-list");
+    const panel = root.querySelector(".sectors-panel");
 
-    const buttons =
-        root.querySelectorAll(
-            ".sectors-list button"
-        );
+    if (!wrap || !list || !panel) return;
 
+    const buttons = list.querySelectorAll("button");
+    const images = panel.querySelectorAll(".sector-image");
 
-    const images =
-        root.querySelectorAll(
-            ".sectors-panel .sector-image"
-        );
+    const mobileQuery = window.matchMedia("(max-width: 820px)");
+    const hoverQuery = window.matchMedia("(hover: hover)");
 
-
-    const mediaQuery =
-        window.matchMedia(
-            "(max-width: 820px)"
-        );
-
+    const originalPanelParent = panel.parentElement;
+    const originalPanelNextSibling = panel.nextSibling;
 
     let current = 0;
+    let mobileOpenIndex = 0;
 
 
-    /* =====================================================
-       SHOW SELECTED SECTOR
-    ===================================================== */
+    /* =====================================
+       UPDATE SELECTED SECTOR
+    ===================================== */
 
-    function showSector(index) {
+    function updateSector(index) {
 
         current = index;
 
+        buttons.forEach((button, i) => {
+            button.setAttribute(
+                "aria-pressed",
+                String(i === index)
+            );
+        });
 
-        /* Update buttons */
-
-        buttons.forEach(
-            (button, i) => {
-
-                button.setAttribute(
-                    "aria-pressed",
-                    i === index
-                );
-
-            }
-        );
-
-
-        /* Update images */
-
-        images.forEach(
-            (image, i) => {
-
-                image.classList.toggle(
-                    "on",
-                    i === index
-                );
-
-            }
-        );
+        images.forEach((image, i) => {
+            image.classList.toggle("on", i === index);
+        });
 
     }
 
 
-    /* =====================================================
-       CLICK + HOVER
-    ===================================================== */
+    /* =====================================
+       RESTORE DESKTOP PANEL POSITION
+    ===================================== */
 
-    buttons.forEach(
-        (button, index) => {
+    function restorePanel() {
 
+        if (originalPanelNextSibling &&
+            originalPanelNextSibling.parentElement === originalPanelParent) {
 
-            /* Click */
-
-            button.addEventListener(
-                "click",
-                () => {
-
-                    showSector(index);
-
-                }
+            originalPanelParent.insertBefore(
+                panel,
+                originalPanelNextSibling
             );
 
+        } else {
 
-            /* Desktop hover */
-
-            button.addEventListener(
-                "mouseenter",
-                () => {
-
-                    if (
-                        !mediaQuery.matches &&
-                        window.matchMedia(
-                            "(hover: hover)"
-                        ).matches
-                    ) {
-
-                        showSector(index);
-
-                    }
-
-                }
-            );
-
-
-            /* Keyboard focus */
-
-            button.addEventListener(
-                "focus",
-                () => {
-
-                    if (!mediaQuery.matches) {
-
-                        showSector(index);
-
-                    }
-
-                }
-            );
+            originalPanelParent.appendChild(panel);
 
         }
-    );
+
+    }
 
 
-    /* =====================================================
+    /* =====================================
+       MOBILE ACCORDION
+    ===================================== */
+
+    function closeMobilePanel() {
+
+        restorePanel();
+        panel.classList.remove("mobile-panel-open");
+        mobileOpenIndex = -1;
+
+        buttons.forEach(button => {
+            button.setAttribute("aria-pressed", "false");
+        });
+
+    }
+
+
+    function openMobilePanel(index) {
+
+        const button = buttons[index];
+        const item = button.closest("li");
+
+        if (!item) return;
+
+        // Put the shared image panel directly after this sector's button
+        item.appendChild(panel);
+
+        panel.classList.add("mobile-panel-open");
+        mobileOpenIndex = index;
+
+        updateSector(index);
+
+    }
+
+
+    /* =====================================
+       CLICK BEHAVIOR
+    ===================================== */
+
+    buttons.forEach((button, index) => {
+
+        button.addEventListener("click", () => {
+
+            if (mobileQuery.matches) {
+
+                // Tapping the open row closes it
+                if (mobileOpenIndex === index) {
+                    closeMobilePanel();
+                    return;
+                }
+
+                // Opening another row replaces the previous one
+                openMobilePanel(index);
+                return;
+
+            }
+
+            // Desktop click behavior remains unchanged
+            updateSector(index);
+
+        });
+
+
+        /* Desktop hover behavior */
+        button.addEventListener("mouseenter", () => {
+
+            if (
+                !mobileQuery.matches &&
+                hoverQuery.matches
+            ) {
+                updateSector(index);
+            }
+
+        });
+
+
+        /* Desktop keyboard focus behavior */
+        button.addEventListener("focus", () => {
+
+            if (!mobileQuery.matches) {
+                updateSector(index);
+            }
+
+        });
+
+    });
+
+
+    /* =====================================
+       SWITCH BETWEEN MOBILE & DESKTOP
+    ===================================== */
+
+    function handleLayoutChange() {
+
+        if (mobileQuery.matches) {
+
+            // Start with the first sector open on mobile
+            openMobilePanel(0);
+
+        } else {
+
+            restorePanel();
+            panel.classList.remove("mobile-panel-open");
+
+            mobileOpenIndex = -1;
+            updateSector(Math.max(0, current));
+
+        }
+
+    }
+
+
+    mobileQuery.addEventListener("change", handleLayoutChange);
+
+
+    /* =====================================
        INITIAL STATE
-    ===================================================== */
+    ===================================== */
 
-    showSector(0);
+    if (mobileQuery.matches) {
+        openMobilePanel(0);
+    } else {
+        updateSector(0);
+    }
 
 })();
-
 
 
 /* =========================================================
